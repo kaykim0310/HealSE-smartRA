@@ -1,6 +1,6 @@
 """
-HealSE smart Risk Assessment 시스템 - Windows 독립 실행 버전
-Flask 백엔드 + HTML 프론트엔드 통합
+HealSE smart Risk Assessment 시스템 - 템플릿 기반 버전
+사용자 제공 Excel 템플릿을 활용한 위험성평가 시스템
 """
 
 from flask import Flask, request, jsonify, send_file, render_template_string
@@ -18,11 +18,12 @@ CORS(app)
 # 업로드 폴더 설정 (Windows 호환)
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
 OUTPUT_FOLDER = os.path.join(os.path.dirname(__file__), 'outputs')
+TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'RA-report.xlsx')
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-# HTML 템플릿
+# HTML 템플릿 (동일한 UI 유지)
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ko">
@@ -75,6 +76,8 @@ HTML_TEMPLATE = """
         .stat-card { background: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         .stat-number { font-size: 2rem; font-weight: bold; color: #007bff; }
         .stat-label { color: #6c757d; margin-top: 5px; }
+        .template-info { background: #e3f2fd; border: 1px solid #2196f3; border-radius: 10px; padding: 20px; margin: 20px 0; }
+        .template-info h4 { color: #1976d2; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -86,6 +89,12 @@ HTML_TEMPLATE = """
         </div>
 
         <div class="main-card">
+            <div class="template-info">
+                <h4>📋 템플릿 기반 보고서 생성</h4>
+                <p>사용자가 제공한 <strong>RA-report.xlsx</strong> 템플릿을 기반으로 위험성평가 보고서를 생성합니다.</p>
+                <p>기존 양식의 디자인과 구조를 그대로 유지하면서 분석 결과만 자동으로 입력됩니다.</p>
+            </div>
+            
             <div class="tabs">
                 <button class="tab active" onclick="showTab(0)">📸 이미지 업로드</button>
                 <button class="tab" onclick="showTab(1)">📋 기본 정보</button>
@@ -132,6 +141,11 @@ HTML_TEMPLATE = """
                     </div>
                     
                     <div class="form-group">
+                        <label for="workDescription">📝 작업내용</label>
+                        <input type="text" id="workDescription" placeholder="예: CNC 선반을 이용한 금속 가공 작업">
+                    </div>
+                    
+                    <div class="form-group">
                         <label for="evaluationDate">📅 평가일자</label>
                         <input type="date" id="evaluationDate">
                     </div>
@@ -160,7 +174,7 @@ HTML_TEMPLATE = """
                 <!-- 탭 4: 보고서 생성 -->
                 <div id="tab-3" class="tab-content hidden">
                     <h2>📄 Excel 보고서 생성</h2>
-                    <p>분석 결과를 KOSHA KRAS 표준 양식의 Excel 파일로 생성합니다</p>
+                    <p>분석 결과를 기존 템플릿 양식에 맞춰 Excel 파일로 생성합니다</p>
                     
                     <div id="reportSection">
                         <div style="text-align: center; padding: 60px; color: #6c757d;">
@@ -342,9 +356,9 @@ HTML_TEMPLATE = """
             document.getElementById('reportSection').innerHTML = `
                 <div class="success-message">
                     <h4>✅ 분석 완료!</h4>
-                    <p>총 ${risks.length}개의 위험요소가 식별되었습니다. 이제 Excel 보고서를 생성할 수 있습니다.</p>
+                    <p>총 ${risks.length}개의 위험요소가 식별되었습니다. 이제 기존 템플릿 양식으로 Excel 보고서를 생성할 수 있습니다.</p>
                 </div>
-                <button class="btn btn-success" onclick="generateReport()">📊 Excel 보고서 생성</button>
+                <button class="btn btn-success" onclick="generateReport()">📊 템플릿 기반 Excel 보고서 생성</button>
             `;
         }
 
@@ -353,6 +367,7 @@ HTML_TEMPLATE = """
             basicInfo = {
                 workplace_name: document.getElementById('workplaceName').value,
                 process_name: document.getElementById('processName').value,
+                work_description: document.getElementById('workDescription').value,
                 evaluation_date: document.getElementById('evaluationDate').value,
                 evaluator: document.getElementById('evaluator').value
             };
@@ -384,8 +399,8 @@ HTML_TEMPLATE = """
             document.getElementById('reportSection').innerHTML = `
                 <div class="loading">
                     <div class="spinner"></div>
-                    <h3>📊 Excel 보고서를 생성하고 있습니다...</h3>
-                    <p>KOSHA KRAS 표준 양식으로 작성 중입니다.</p>
+                    <h3>📊 템플릿 기반 Excel 보고서를 생성하고 있습니다...</h3>
+                    <p>기존 RA-report.xlsx 양식에 분석 결과를 입력 중입니다.</p>
                 </div>
             `;
 
@@ -407,8 +422,9 @@ HTML_TEMPLATE = """
                     // 성공 메시지와 다운로드 링크
                     document.getElementById('reportSection').innerHTML = `
                         <div class="success-message">
-                            <h4>🎉 Excel 보고서 생성 완료!</h4>
+                            <h4>🎉 템플릿 기반 Excel 보고서 생성 완료!</h4>
                             <p><strong>파일명:</strong> ${result.filename}</p>
+                            <p><strong>템플릿:</strong> RA-report.xlsx 기반</p>
                             <p><strong>총 위험요소:</strong> ${result.summary.총_위험요소}개</p>
                             <p><strong>평균 위험점수:</strong> ${result.summary.평균_위험점수.toFixed(1)}점</p>
                             <p><strong>전체 평가:</strong> ${result.summary.전체_평가}</p>
@@ -456,7 +472,8 @@ def health_check():
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "message": "HealSE smart Risk Assessment API 서버가 정상 작동 중입니다.",
-        "version": "Windows 독립 실행 버전 v1.0"
+        "version": "템플릿 기반 버전 v1.0",
+        "template_available": os.path.exists(TEMPLATE_PATH)
     })
 
 @app.route('/api/analyze-image', methods=['POST'])
@@ -477,61 +494,79 @@ def analyze_image():
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         file.save(filepath)
         
-        # 실제 이미지 기반 샘플 분석 결과 (더 현실적으로)
+        # 실제 이미지 기반 샘플 분석 결과
         import random
         
-        # 위험요소 풀
+        # 위험요소 풀 (KRAS 기준에 맞게)
         risk_pool = [
             {
-                "category": "기계적",
+                "category": "기계적 위험요인",
                 "risk_factor": "회전부품 노출",
                 "description": "기계 회전부품에 안전덮개가 없어 협착 위험",
-                "location": "작업대 중앙",
+                "location": "작업대 중앙부",
+                "cause": "안전덮개 미설치",
+                "legal_basis": "산업안전보건기준에 관한 규칙 제78조",
+                "current_measures": "작업자 주의 교육",
                 "possibility_score": random.randint(3, 5),
-                "severity_score": random.randint(2, 4),
+                "severity_score": random.randint(3, 4),
                 "improvement_measures": ["안전덮개 설치", "비상정지 스위치 설치", "안전교육 실시"]
             },
             {
-                "category": "전기적",
+                "category": "전기적 위험요인",
                 "risk_factor": "전선 노출",
                 "description": "전선이 바닥에 노출되어 감전 위험",
                 "location": "작업장 입구",
+                "cause": "전선 정리 미흡",
+                "legal_basis": "전기설비기술기준 제15조",
+                "current_measures": "임시 테이핑 처리",
                 "possibility_score": random.randint(2, 4),
                 "severity_score": random.randint(3, 4),
                 "improvement_measures": ["전선 정리", "절연처리", "전용 덕트 설치"]
             },
             {
-                "category": "작업환경적",
+                "category": "작업환경적 위험요인",
                 "risk_factor": "정리정돈 불량",
                 "description": "작업장 바닥에 공구와 자재가 어지럽게 놓여 있음",
                 "location": "작업장 전체",
+                "cause": "정리정돈 규칙 미준수",
+                "legal_basis": "산업안전보건기준에 관한 규칙 제24조",
+                "current_measures": "주기적 정리 지시",
                 "possibility_score": random.randint(4, 5),
                 "severity_score": random.randint(1, 3),
                 "improvement_measures": ["5S 활동 실시", "정리정돈 교육", "전용 보관함 설치"]
             },
             {
-                "category": "화학적",
-                "risk_factor": "화학물질 취급",
+                "category": "화학적 위험요인",
+                "risk_factor": "화학물질 취급 부주의",
                 "description": "적절한 보호장비 없이 화학물질 취급",
                 "location": "화학물질 저장소",
+                "cause": "보호장비 미착용",
+                "legal_basis": "화학물질관리법 제25조",
+                "current_measures": "보호장비 비치",
                 "possibility_score": random.randint(2, 4),
                 "severity_score": random.randint(2, 4),
-                "improvement_measures": ["보호장비 착용", "환기시설 개선", "MSDS 교육"]
+                "improvement_measures": ["보호장비 착용 의무화", "환기시설 개선", "MSDS 교육"]
             },
             {
-                "category": "물리적",
+                "category": "물리적 위험요인",
                 "risk_factor": "소음 노출",
                 "description": "85dB 이상의 소음에 장시간 노출",
                 "location": "기계 운전 구역",
+                "cause": "소음 차단 시설 부족",
+                "legal_basis": "산업안전보건기준에 관한 규칙 제512조",
+                "current_measures": "귀마개 지급",
                 "possibility_score": random.randint(3, 5),
                 "severity_score": random.randint(2, 3),
-                "improvement_measures": ["귀마개 착용", "소음 차단막 설치", "정기 청력검사"]
+                "improvement_measures": ["귀마개 착용 의무화", "소음 차단막 설치", "정기 청력검사"]
             },
             {
-                "category": "인간공학적",
-                "risk_factor": "반복작업",
-                "description": "동일한 동작의 반복으로 인한 근골격계 부담",
+                "category": "인간공학적 위험요인",
+                "risk_factor": "반복작업으로 인한 근골격계 부담",
+                "description": "동일한 동작의 반복으로 인한 근골격계 질환 위험",
                 "location": "조립 라인",
+                "cause": "작업 순환 부족",
+                "legal_basis": "산업안전보건기준에 관한 규칙 제656조",
+                "current_measures": "스트레칭 시간 운영",
                 "possibility_score": random.randint(3, 5),
                 "severity_score": random.randint(1, 3),
                 "improvement_measures": ["작업순환제 도입", "스트레칭 교육", "작업대 높이 조절"]
@@ -548,20 +583,20 @@ def analyze_image():
             
             # 가능성 사유
             possibility_reasons = {
-                1: "매우 드물게 발생",
-                2: "가끔 접촉 가능",
-                3: "보통 수준의 노출",
-                4: "자주 접근하는 작업 영역",
-                5: "매일 발생하는 상황"
+                1: "매우 드물게 발생 (연 1회 미만)",
+                2: "가끔 접촉 가능 (월 1회 정도)",
+                3: "보통 수준의 노출 (주 1회 정도)",
+                4: "자주 접근하는 작업 영역 (일 1회 정도)",
+                5: "매일 발생하는 상황 (매일 여러 번)"
             }
             risk["possibility_reason"] = possibility_reasons[risk["possibility_score"]]
             
             # 중대성 사유
             severity_reasons = {
-                1: "경미한 부상",
-                2: "넘어짐으로 인한 부상",
-                3: "중상 가능성",
-                4: "감전 시 사망 위험"
+                1: "경미한 부상 (응급처치 수준)",
+                2: "치료 필요한 부상 (병원 치료)",
+                3: "중상 (입원 치료 필요)",
+                4: "영구 장애 또는 사망 위험"
             }
             risk["severity_reason"] = severity_reasons[risk["severity_score"]]
         
@@ -572,7 +607,7 @@ def analyze_image():
                 "highest_risk_score": max([r["risk_score"] for r in selected_risks]),
                 "average_risk_score": sum([r["risk_score"] for r in selected_risks]) / len(selected_risks),
                 "priority_improvements": [r["improvement_measures"][0] for r in selected_risks[:2]],
-                "compliance_issues": ["산업안전보건법 제38조 위반 가능성"] if max([r["risk_score"] for r in selected_risks]) > 8 else []
+                "compliance_issues": ["산업안전보건법 위반 가능성"] if max([r["risk_score"] for r in selected_risks]) > 12 else []
             },
             "file_info": {
                 "filename": filename,
@@ -592,7 +627,7 @@ def analyze_image():
 
 @app.route('/api/generate-excel', methods=['POST'])
 def generate_excel():
-    """Excel 보고서 생성 API"""
+    """템플릿 기반 Excel 보고서 생성 API"""
     try:
         data = request.get_json()
         
@@ -608,6 +643,10 @@ def generate_excel():
             if not basic_info.get(field):
                 return jsonify({"error": f"필수 정보가 누락되었습니다: {field}"}), 400
         
+        # 템플릿 파일 확인
+        if not os.path.exists(TEMPLATE_PATH):
+            return jsonify({"error": "템플릿 파일(RA-report.xlsx)을 찾을 수 없습니다."}), 500
+        
         # Excel 파일 생성
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_workplace_name = "".join(c for c in basic_info['workplace_name'] if c.isalnum() or c in (' ', '-', '_')).rstrip()
@@ -615,166 +654,106 @@ def generate_excel():
         final_path = os.path.join(OUTPUT_FOLDER, final_filename)
         
         try:
-            # openpyxl 사용하여 Excel 생성
+            # 템플릿 파일 복사
+            shutil.copy2(TEMPLATE_PATH, final_path)
+            
+            # openpyxl로 템플릿 수정
             import openpyxl
-            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-            from openpyxl.utils import get_column_letter
+            from openpyxl.styles import Font, PatternFill, Alignment
             
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "위험성평가 결과"
+            wb = openpyxl.load_workbook(final_path)
             
-            # 스타일 정의
-            title_font = Font(bold=True, size=16, color="FFFFFF")
-            header_font = Font(bold=True, size=12, color="FFFFFF")
-            normal_font = Font(size=11)
+            # 위험성평가 시트 찾기
+            risk_sheet = None
+            for sheet_name in wb.sheetnames:
+                if '위험성평가' in sheet_name or '평가' in sheet_name:
+                    risk_sheet = wb[sheet_name]
+                    break
             
-            title_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
-            header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+            if not risk_sheet:
+                # 첫 번째 시트를 사용
+                risk_sheet = wb.active
             
-            border = Border(
-                left=Side(style='thin'),
-                right=Side(style='thin'),
-                top=Side(style='thin'),
-                bottom=Side(style='thin')
-            )
+            # 기본 정보 입력 (템플릿 구조에 맞게)
+            risks = analysis_data.get('identified_risks', [])
             
-            # 제목 작성
-            ws.merge_cells('A1:G1')
-            title_cell = ws['A1']
-            title_cell.value = "HealSE smart Risk Assessment 보고서"
-            title_cell.font = title_font
-            title_cell.fill = title_fill
-            title_cell.alignment = Alignment(horizontal='center', vertical='center')
-            title_cell.border = border
+            # 템플릿의 구조를 분석하여 적절한 위치에 데이터 입력
+            # 일반적인 위치를 추정하여 입력
             
-            # 기본 정보 섹션
-            ws['A3'] = "기본 정보"
-            ws['A3'].font = Font(bold=True, size=14)
-            ws.merge_cells('A3:B3')
+            # 사업장명, 공정명 등 기본 정보 (상단 부분)
+            for row in range(1, 10):
+                for col in range(1, 10):
+                    cell = risk_sheet.cell(row=row, column=col)
+                    if cell.value and isinstance(cell.value, str):
+                        if '사업장' in cell.value or '업체' in cell.value:
+                            # 다음 셀에 사업장명 입력
+                            risk_sheet.cell(row=row, column=col+1, value=basic_info['workplace_name'])
+                        elif '공정' in cell.value:
+                            risk_sheet.cell(row=row, column=col+1, value=basic_info['process_name'])
+                        elif '평가일' in cell.value or '일자' in cell.value:
+                            risk_sheet.cell(row=row, column=col+1, value=basic_info['evaluation_date'])
+                        elif '평가자' in cell.value:
+                            risk_sheet.cell(row=row, column=col+1, value=basic_info.get('evaluator', ''))
             
-            info_data = [
-                ("사업장명", basic_info['workplace_name']),
-                ("공정명", basic_info['process_name']),
-                ("평가일자", basic_info['evaluation_date']),
-                ("평가자", basic_info.get('evaluator', '')),
-                ("평가 완료일", datetime.now().strftime("%Y-%m-%d %H:%M"))
-            ]
+            # 위험요소 데이터 입력을 위한 시작 행 찾기
+            data_start_row = None
+            for row in range(1, 50):
+                for col in range(1, 20):
+                    cell = risk_sheet.cell(row=row, column=col)
+                    if cell.value and isinstance(cell.value, str):
+                        if any(keyword in cell.value for keyword in ['위험요인', '위험요소', '분류', '가능성', '중대성']):
+                            data_start_row = row + 1
+                            break
+                if data_start_row:
+                    break
             
-            for i, (label, value) in enumerate(info_data, 4):
-                ws[f'A{i}'] = label
-                ws[f'B{i}'] = value
-                ws[f'A{i}'].font = Font(bold=True)
-            
-            # 위험요소 테이블 시작 행
-            start_row = 10
-            
-            # 테이블 헤더
-            headers = ['번호', '위험요소', '분류', '가능성', '중대성', '위험점수', '개선방안']
-            for col, header in enumerate(headers, 1):
-                cell = ws.cell(row=start_row, column=col, value=header)
-                cell.font = header_font
-                cell.fill = header_fill
-                cell.alignment = Alignment(horizontal='center', vertical='center')
-                cell.border = border
+            if not data_start_row:
+                data_start_row = 15  # 기본값
             
             # 위험요소 데이터 입력
-            risks = analysis_data.get('identified_risks', [])
-            for i, risk in enumerate(risks, 1):
-                row = start_row + i
+            for i, risk in enumerate(risks):
+                row = data_start_row + i
                 
-                # 데이터 입력
-                ws.cell(row=row, column=1, value=i).border = border
-                ws.cell(row=row, column=2, value=risk.get('risk_factor', '')).border = border
-                ws.cell(row=row, column=3, value=risk.get('category', '')).border = border
-                ws.cell(row=row, column=4, value=risk.get('possibility_score', 0)).border = border
-                ws.cell(row=row, column=5, value=risk.get('severity_score', 0)).border = border
-                
-                # 위험점수에 색상 적용
-                risk_score = risk.get('risk_score', 0)
-                score_cell = ws.cell(row=row, column=6, value=risk_score)
-                score_cell.border = border
-                
-                if risk_score <= 4:
-                    score_cell.fill = PatternFill(start_color="92D050", end_color="92D050", fill_type="solid")
-                elif risk_score <= 8:
-                    score_cell.fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
-                else:
-                    score_cell.fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
-                    score_cell.font = Font(color="FFFFFF", bold=True)
-                
-                # 개선방안
-                improvements = ', '.join(risk.get('improvement_measures', []))
-                ws.cell(row=row, column=7, value=improvements).border = border
+                # 템플릿 구조에 맞춰 데이터 입력 (추정 위치)
+                try:
+                    # 일반적인 컬럼 순서로 입력
+                    risk_sheet.cell(row=row, column=1, value=i+1)  # 번호
+                    risk_sheet.cell(row=row, column=2, value=basic_info.get('work_description', ''))  # 작업내용
+                    risk_sheet.cell(row=row, column=3, value=risk.get('category', ''))  # 분류
+                    risk_sheet.cell(row=row, column=4, value=risk.get('cause', ''))  # 원인
+                    risk_sheet.cell(row=row, column=5, value=risk.get('risk_factor', ''))  # 위험요인
+                    risk_sheet.cell(row=row, column=6, value=risk.get('legal_basis', ''))  # 관련 근거
+                    risk_sheet.cell(row=row, column=7, value=risk.get('current_measures', ''))  # 현재 조치
+                    risk_sheet.cell(row=row, column=8, value=risk.get('possibility_score', 0))  # 가능성
+                    risk_sheet.cell(row=row, column=9, value=risk.get('severity_score', 0))  # 중대성
+                    risk_sheet.cell(row=row, column=10, value=risk.get('risk_score', 0))  # 위험성
+                    risk_sheet.cell(row=row, column=11, value=', '.join(risk.get('improvement_measures', [])))  # 감소대책
+                    
+                    # 위험점수에 따른 색상 적용
+                    risk_score = risk.get('risk_score', 0)
+                    score_cell = risk_sheet.cell(row=row, column=10)
+                    
+                    if risk_score <= 4:
+                        score_cell.fill = PatternFill(start_color="92D050", end_color="92D050", fill_type="solid")
+                    elif risk_score <= 9:
+                        score_cell.fill = PatternFill(start_color="FFC000", end_color="FFC000", fill_type="solid")
+                    elif risk_score <= 15:
+                        score_cell.fill = PatternFill(start_color="FF6600", end_color="FF6600", fill_type="solid")
+                    else:
+                        score_cell.fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+                        score_cell.font = Font(color="FFFFFF", bold=True)
+                        
+                except Exception as e:
+                    print(f"데이터 입력 오류 (행 {row}): {e}")
+                    continue
             
-            # 요약 통계
-            summary_start = start_row + len(risks) + 3
-            ws[f'A{summary_start}'] = "평가 요약"
-            ws[f'A{summary_start}'].font = Font(bold=True, size=14)
-            
-            total_risks = len(risks)
-            avg_score = sum(r.get('risk_score', 0) for r in risks) / max(total_risks, 1)
-            max_score = max([r.get('risk_score', 0) for r in risks] + [0])
-            
-            high_risk_count = sum(1 for r in risks if r.get('risk_score', 0) > 8)
-            
-            summary_data = [
-                ("총 위험요소 수", f"{total_risks}개"),
-                ("평균 위험점수", f"{avg_score:.1f}점"),
-                ("최고 위험점수", f"{max_score}점"),
-                ("높은 위험 요소", f"{high_risk_count}개"),
-                ("전체 평가", "높은 위험" if max_score > 12 else "보통 위험" if max_score > 8 else "낮은 위험")
-            ]
-            
-            for i, (label, value) in enumerate(summary_data, summary_start + 1):
-                ws[f'A{i}'] = label
-                ws[f'B{i}'] = value
-                ws[f'A{i}'].font = Font(bold=True)
-            
-            # 열 너비 자동 조정
-            column_widths = [8, 25, 15, 10, 10, 12, 50]
-            for col, width in enumerate(column_widths, 1):
-                ws.column_dimensions[get_column_letter(col)].width = width
-            
-            # 행 높이 조정
-            for row in range(1, ws.max_row + 1):
-                ws.row_dimensions[row].height = 20
-            
+            # 파일 저장
             wb.save(final_path)
-            print(f"Excel 파일 생성 완료: {final_path}")
+            print(f"템플릿 기반 Excel 파일 생성 완료: {final_path}")
             
-        except ImportError:
-            # openpyxl이 없는 경우 CSV 파일로 대체
-            final_filename = f"HealSE_Report_{safe_workplace_name}_{timestamp}.csv"
-            final_path = os.path.join(OUTPUT_FOLDER, final_filename)
-            
-            import csv
-            with open(final_path, 'w', newline='', encoding='utf-8-sig') as csvfile:
-                writer = csv.writer(csvfile)
-                
-                # 헤더
-                writer.writerow(['HealSE smart Risk Assessment 보고서'])
-                writer.writerow([])
-                writer.writerow(['기본 정보'])
-                writer.writerow(['사업장명', basic_info['workplace_name']])
-                writer.writerow(['공정명', basic_info['process_name']])
-                writer.writerow(['평가일자', basic_info['evaluation_date']])
-                writer.writerow(['평가자', basic_info.get('evaluator', '')])
-                writer.writerow([])
-                
-                # 위험요소 테이블
-                writer.writerow(['번호', '위험요소', '분류', '가능성', '중대성', '위험점수', '개선방안'])
-                
-                for i, risk in enumerate(analysis_data.get('identified_risks', []), 1):
-                    writer.writerow([
-                        i,
-                        risk.get('risk_factor', ''),
-                        risk.get('category', ''),
-                        risk.get('possibility_score', 0),
-                        risk.get('severity_score', 0),
-                        risk.get('risk_score', 0),
-                        ', '.join(risk.get('improvement_measures', []))
-                    ])
+        except Exception as e:
+            print(f"템플릿 처리 오류: {e}")
+            return jsonify({"error": f"템플릿 처리 중 오류가 발생했습니다: {str(e)}"}), 500
         
         # 요약 보고서 생성
         risks = analysis_data.get('identified_risks', [])
@@ -782,14 +761,15 @@ def generate_excel():
             "총_위험요소": len(risks),
             "평균_위험점수": sum(r.get('risk_score', 0) for r in risks) / max(len(risks), 1),
             "최고_위험점수": max([r.get('risk_score', 0) for r in risks] + [0]),
-            "높은_위험_개수": sum(1 for r in risks if r.get('risk_score', 0) > 8),
-            "전체_평가": "높은 위험" if max([r.get('risk_score', 0) for r in risks] + [0]) > 12 else "보통 위험"
+            "높은_위험_개수": sum(1 for r in risks if r.get('risk_score', 0) > 9),
+            "전체_평가": "매우 높은 위험" if max([r.get('risk_score', 0) for r in risks] + [0]) > 15 else "높은 위험" if max([r.get('risk_score', 0) for r in risks] + [0]) > 9 else "보통 위험"
         }
         
         return jsonify({
             "success": True,
             "filename": final_filename,
             "filepath": final_path,
+            "template_used": "RA-report.xlsx",
             "summary": summary,
             "download_url": f"/api/download/{final_filename}"
         })
@@ -820,9 +800,12 @@ def download_file(filename):
 if __name__ == '__main__':
     print("=" * 60)
     print("🛡️  HealSE smart Risk Assessment 시스템 시작")
+    print("   (템플릿 기반 버전)")
     print("=" * 60)
     print(f"📁 업로드 폴더: {UPLOAD_FOLDER}")
     print(f"📊 출력 폴더: {OUTPUT_FOLDER}")
+    print(f"📋 템플릿 파일: {TEMPLATE_PATH}")
+    print(f"📋 템플릿 존재: {'✅' if os.path.exists(TEMPLATE_PATH) else '❌'}")
     print(f"🌐 서버 주소: http://localhost:5000")
     print("=" * 60)
     print("✅ 브라우저에서 http://localhost:5000 에 접속하세요!")
