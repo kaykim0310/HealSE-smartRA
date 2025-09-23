@@ -1,5 +1,5 @@
 """
-KOSHA KRAS 위험성평가 시스템 - Windows 독립 실행 버전
+HealSE smart Risk Assessment 시스템 - Windows 독립 실행 버전
 Flask 백엔드 + HTML 프론트엔드 통합
 """
 
@@ -29,13 +29,13 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KOSHA KRAS 위험성평가 시스템</title>
+    <title>HealSE smart Risk Assessment</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #fffef7 0%, #fff9e6 100%); min-height: 100vh; }
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .header { text-align: center; margin-bottom: 40px; color: white; }
-        .header h1 { font-size: 3rem; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .header { text-align: center; margin-bottom: 40px; color: #2c3e50; }
+        .header h1 { font-size: 3rem; margin-bottom: 10px; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
         .header p { font-size: 1.2rem; opacity: 0.9; }
         .main-card { background: white; border-radius: 20px; padding: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
         .tabs { display: flex; background: #f8f9fa; border-radius: 15px; overflow: hidden; margin-bottom: 30px; }
@@ -80,7 +80,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="container">
         <div class="header">
-            <h1>🛡️ KOSHA KRAS</h1>
+            <h1>🛡️ HealSE smart Risk Assessment</h1>
             <p>위험성평가 자동 분석 시스템</p>
             <p>작업장 사진을 업로드하면 AI가 위험요소를 자동으로 분석하여 Excel 보고서를 생성합니다</p>
         </div>
@@ -455,7 +455,7 @@ def health_check():
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "message": "KOSHA KRAS API 서버가 정상 작동 중입니다.",
+        "message": "HealSE smart Risk Assessment API 서버가 정상 작동 중입니다.",
         "version": "Windows 독립 실행 버전 v1.0"
     })
 
@@ -611,7 +611,7 @@ def generate_excel():
         # Excel 파일 생성
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_workplace_name = "".join(c for c in basic_info['workplace_name'] if c.isalnum() or c in (' ', '-', '_')).rstrip()
-        final_filename = f"KRAS_Report_{safe_workplace_name}_{timestamp}.xlsx"
+        final_filename = f"HealSE_Report_{safe_workplace_name}_{timestamp}.xlsx"
         final_path = os.path.join(OUTPUT_FOLDER, final_filename)
         
         try:
@@ -642,7 +642,7 @@ def generate_excel():
             # 제목 작성
             ws.merge_cells('A1:G1')
             title_cell = ws['A1']
-            title_cell.value = "KOSHA KRAS 위험성평가 보고서"
+            title_cell.value = "HealSE smart Risk Assessment 보고서"
             title_cell.font = title_font
             title_cell.fill = title_fill
             title_cell.alignment = Alignment(horizontal='center', vertical='center')
@@ -745,7 +745,7 @@ def generate_excel():
             
         except ImportError:
             # openpyxl이 없는 경우 CSV 파일로 대체
-            final_filename = f"KRAS_Report_{safe_workplace_name}_{timestamp}.csv"
+            final_filename = f"HealSE_Report_{safe_workplace_name}_{timestamp}.csv"
             final_path = os.path.join(OUTPUT_FOLDER, final_filename)
             
             import csv
@@ -753,7 +753,7 @@ def generate_excel():
                 writer = csv.writer(csvfile)
                 
                 # 헤더
-                writer.writerow(['KOSHA KRAS 위험성평가 보고서'])
+                writer.writerow(['HealSE smart Risk Assessment 보고서'])
                 writer.writerow([])
                 writer.writerow(['기본 정보'])
                 writer.writerow(['사업장명', basic_info['workplace_name']])
@@ -819,7 +819,7 @@ def download_file(filename):
 
 if __name__ == '__main__':
     print("=" * 60)
-    print("🛡️  KOSHA KRAS 위험성평가 시스템 시작")
+    print("🛡️  HealSE smart Risk Assessment 시스템 시작")
     print("=" * 60)
     print(f"📁 업로드 폴더: {UPLOAD_FOLDER}")
     print(f"📊 출력 폴더: {OUTPUT_FOLDER}")
